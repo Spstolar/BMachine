@@ -40,11 +40,11 @@ class BoltzmannMachine(object):
         self.state[node] = result
 
     def run_machine(self):
-        update_list = np.random.shuffle(np.arange(self.total_nodes))  # The array [0 1 ... n-1] shuffled.
+        visit_list = np.arange(self.total_nodes) # The array [0 1 ... n-1].
+        np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
         for run in range(100):
-            node_to_update = run % self.total_nodes
+            node_to_update = visit_list[run % self.total_nodes]
             self.update(node_to_update)
-
 
     def create_random_weights(self):
         weights = np.random.normal(0, 1, size=(self.total_nodes, self.total_nodes))  # Random weights from N(0,1).
