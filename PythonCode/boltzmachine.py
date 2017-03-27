@@ -1,13 +1,10 @@
 import numpy as np
 
-
 class BoltzmannMachine(object):
     def __init__(self, input_size, hidden_size, output_size):
         self.total_nodes = input_size + hidden_size + output_size
-
         self.state = np.random.randint(0, 2, self.total_nodes, dtype=int)  # Begin with a random 0-1 draw.
         self.state = (self.state - .5) * 2  # Convert to -1, +1 state.
-
         self.weights = self.create_random_weights()
 
     def print_current_state(self):
@@ -40,10 +37,10 @@ class BoltzmannMachine(object):
         self.state[node] = result
 
     def run_machine(self):
-        visit_list = np.arange(self.total_nodes) # The array [0 1 ... n-1].
+        visit_list = np.arange(self.total_nodes)  # The array [0 1 ... n-1].
         np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
         for run in range(100):
-            node_to_update = visit_list[run % self.total_nodes]
+            node_to_update = visit_list[run % self.total_nodes]  #clever ;)
             self.update(node_to_update)
 
     def create_random_weights(self):
@@ -64,5 +61,3 @@ BM.print_current_state()
 for i in range(10):  # Do the update process 10 times, printing the end state each time.
     BM.run_machine()
     BM.print_current_state()
-
-
