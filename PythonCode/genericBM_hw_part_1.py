@@ -44,17 +44,12 @@ class BoltzmannMachine(object):
             self.update(node_to_update)
 
     def create_random_weights(self):
-        weights = np.random.normal(0, 1, size=(self.total_nodes, self.total_nodes))  # Random weights from N(0,1).
-        weights = (weights + weights.T) / 2  # To make it symmetric.
-
-        # The next few lines create a symmetric array of weights to zero out, and remove self-connections.
-        disconnect = np.random.randint(0, 2, (self.total_nodes, self.total_nodes))  # Choose weights to zero out.
-        disconnect_lower_triangle = np.tril(disconnect)
-        disconnect = disconnect_lower_triangle + disconnect_lower_triangle.T
-        weights = disconnect * weights  # Zero out the weights chosen by disconnect. Point-wise mult.
+        weights = np.random.uniform(-1, 1, size=(self.total_nodes, self.total_nodes))  # Random weights ~ U([-1,1])
+        weights = np.triu(weights, k=1)  # discard lower diagonal terms (and the diagonal to avoid self-connections)
+        weights = weights + weights.T  # make the weights symmetric
         return weights
 
-BM = BoltzmannMachine(2, 4, 2)
+BM = BoltzmannMachine(0, 30, 0)
 
 BM.print_current_state()
 
