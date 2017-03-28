@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 
 def sigmoid(input):
     return 1.0 / (1 + np.exp(-input))
@@ -11,6 +11,10 @@ class BoltzmannMachine(object):
         self.state = (self.state - .5) * 2  # Convert to -1, +1 state.
         self.weights = self.create_random_weights()
         self.history = self.state
+        self.sweeps = 1000
+        self.stabilization = np.zeros((self.sweeps, self.total_nodes))
+        self.threshold = .01
+        self.energy_history = np.zeros(200)
 
     def print_current_state(self):
         print self.state
@@ -27,7 +31,7 @@ class BoltzmannMachine(object):
         affected subsets.
         :return: conditional probability of this
         """
-        return sigmoid(self.state_energy())
+        return np.exp(-self.state_energy())
 
     def conditional_prob(self, node):
         lin_sum_neighbors = np.dot(self.weights[node,:], self.state)
@@ -40,14 +44,32 @@ class BoltzmannMachine(object):
         # print result
         self.state[node] = result
 
-    def run_machine(self, sweep_num):
+    def run_machine(self, sweep_num, stabilized=0):
         visit_list = np.arange(self.total_nodes)  # The array [0 1 ... n-1].
         for sweep in range(sweep_num):
             np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
             for node_num in range(self.total_nodes):
                 node_to_update = visit_list[node_num]
                 self.update(node_to_update)
-            self.history = np.vstack((self.history, self.state))
+            if stabilized == 0:
+                if self.stabilization_check(sweep) == 1:
+                    break
+            if stabilized == 1:
+                self.history = np.vstack((self.history, self.state))
+                self.energy_history[sweep] = self.state_energy()
+
+    def stabilization_check(self, sweep):
+        prev_mean = self.empirical_mean()
+        self.history = np.vstack((self.history, self.state))
+        current_mean = self.empirical_mean()
+        difference = np.abs(current_mean - prev_mean)
+        self.stabilization[sweep, :] = np.less(difference, self.threshold)
+        if (np.sum(self.stabilization[sweep, :]) > 27) & (sweep > 100):
+            print sweep
+            print self.stabilization[sweep, :]
+            return 1
+        else:
+            return 0
 
     def create_random_weights(self):
         weights = np.random.uniform(-1, 1, size=(self.total_nodes, self.total_nodes))  # Random weights ~ U([-1,1])
@@ -59,12 +81,25 @@ class BoltzmannMachine(object):
         return np.mean(self.history, axis=0)
 
 
+start_time = time.time()
+
 BM = BoltzmannMachine(0, 30, 0)
 
-BM.print_current_state()
+# BM.print_current_state()
 
-BM.run_machine(3)
+BM.run_machine(BM.sweeps)
 
-print BM.history
+# print BM.history
 
-print BM.empirical_mean()
+# print BM.empirical_mean()
+
+print BM.stabilization
+
+end_time = time.time()
+
+print end_time - start_time
+
+print BM.stabilization[-1,:]
+
+BM.run_machine(200,1)
+print BM.energy_history
