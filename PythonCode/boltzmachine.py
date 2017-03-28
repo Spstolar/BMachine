@@ -49,7 +49,7 @@ class BoltzmannMachine(object):
 
         # The next few lines create a symmetric array of weights to zero out, and remove self-connections.
         disconnect = np.random.randint(0, 2, (self.total_nodes, self.total_nodes))  # Choose weights to zero out.
-        disconnect_lower_triangle = np.tril(disconnect)
+        disconnect_lower_triangle = np.tril(disconnect, k=-1)  # I don't think the previous code removed self-connections
         disconnect = disconnect_lower_triangle + disconnect_lower_triangle.T
         weights = disconnect * weights  # Zero out the weights chosen by disconnect. Point-wise mult.
         return weights
