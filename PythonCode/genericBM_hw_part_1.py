@@ -36,10 +36,10 @@ class BoltzmannMachine(object):
         # print result
         self.state[node] = result
 
-    def run_machine(self):
+    def run_machine(self, n, output):
         visit_list = np.arange(self.total_nodes)  # The array [0 1 ... n-1].
         np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
-        for run in range(100):  # why hard-coded 100? What does it correspond to?
+        for run in range(n):  # why hard-coded 100? What does it correspond to?
             node_to_update = visit_list[run % self.total_nodes]  # I don't understand this
             self.update(node_to_update)
 
@@ -54,5 +54,5 @@ BM = BoltzmannMachine(0, 30, 0)
 BM.print_current_state()
 
 for i in range(10):  # Do the update process 10 times, printing the end state each time.
-    BM.run_machine()
+    BM.run_machine(1)
     BM.print_current_state()
