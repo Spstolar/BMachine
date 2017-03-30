@@ -4,6 +4,11 @@ import time
 def sigmoid(input):
     return 1.0 / (1 + np.exp(-input))
 
+def rand_bern(length):
+    # Return a random vector of -1s and 1s.
+    rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
+    return (rand_vec - .5) * 2  # Convert to -1, +1 state.
+
 class BoltzmannMachine(object):
     def __init__(self, input_size, hidden_size, output_size):
         self.total_nodes = input_size + hidden_size + output_size
@@ -13,8 +18,7 @@ class BoltzmannMachine(object):
         self.hidden_ind = input_size
         self.out_ind = input_size + output_size
         
-        self.state = np.random.randint(0, 2, self.total_nodes, dtype=int)  # Begin with a random 0-1 draw.
-        self.state = (self.state - .5) * 2  # Convert to -1, +1 state.
+        self.state = rand_bern(self.total_nodes)
         self.weights = self.create_random_weights()
         self.correct_weights()
         
@@ -102,20 +106,38 @@ class BoltzmannMachine(object):
         return np.mean(self.history, axis=0)
         
     def clamped_run(self, in_state, out_state, sweep_num=1):
-    	# Runs the machine while forcing the input nodes and output nodes to stay the same. 
-    	# Only the hidden nodes will change.
-    	# Can return final hidden configuration.
-    	# Can return the coactivity 
-    	# Updates the hidden states.
-        visit_list = np.arange(self.size)  # The array [0 1 ... n-1].
+        # Runs the machine while forcing the input nodes and output nodes to stay the same. 
+        # Updates the hidden states.
+        self.state[:self.hidden_ind] = in_state
+        self.state[self.out_ind:] = out_state
+        visit_list = np.arange(self.hidden_ind, self.out_ind)  
         for sweep in range(sweep_num):
-        np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
-        for node_num in range(self.hidden_size):
-        node_to_update = visit_list[node_num + self.input_size]
-        self.update(node_to_update)
+            np.random.shuffle(visit_list)  
+            for node_num in range(self.hidden_size):
+                node_to_update = visit_list[node_num]
+                self.update(node_to_update)
+        
+    def unclamped_run(self, in_state, sweep_num=1):
+        # Runs the machine while forcing the input nodes to stay the same. 
+        # Updates the hidden states and output states.
+        self.state[:self.hidden_ind] = in_state
+        visit_list = np.arange(self.hidden_ind,self.total_nodes)  
+        for sweep in range(sweep_num):
+            np.random.shuffle(visit_list)  
+            for node_num in range(self.hidden_size + self.output_size):
+                node_to_update = visit_list[node_num]
+                self.update(node_to_update)
 		
     def clamped_run_mle(self, in_state, out_state):
+        # Update the machine using the maximum likelihood states. 
+        self.state[:self.hidden_ind] = in_state
+        self.state[self.out_ind:] = out_state
         for node_num in range(self.hidden_size):
+            self.mle_update(node_num + self.input_size)
+            
+    def unclamped_run_mle(self, in_state):
+        self.state[:self.hidden_ind] = in_state
+        for node_num in range(self.hidden_size + self.output_size):
             self.mle_update(node_num + self.input_size)
                     
     def training(self, example_set, batch_size, num_batches, iterations):
@@ -125,11 +147,21 @@ class BoltzmannMachine(object):
                 batch_process(batch)
                             
     def batch_process(self, batch, batch_size):
-        for ex in range(batch_size):	
+        batch_coactivity_clampled = np.zeros((self.total_nodes,self.total_nodes))
+        batch_coactivity_unclampled = np.zeros((self.total_nodes,self.total_nodes))
+        for ex in range(batch_size):
+            # First clamp down the input nodes and output nodes and compute coactivity.
             clamped_run_mle(batch[ex, :self.hidden_ind], batch[ex, self.out_ind:])
+            batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
+            # Next clamp down just the input nodes and compute coactivity.
+            unclamped_run(batch[ex, :self.hidden_ind])
+            batch_coactivity_unclamped = batch_coactivity_unclamped + self.coactivity()
+        dW = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
                 
     def coactivity(self):
         return np.outer(self.state, self.state) 
+        
+    
         
 
 start_time = time.time()
