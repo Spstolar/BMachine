@@ -151,15 +151,35 @@ class BoltzmannMachine(object):
         batch_coactivity_unclampled = np.zeros((self.total_nodes,self.total_nodes))
         for ex in range(batch_size):
             # First clamp down the input nodes and output nodes and compute coactivity.
+            self.state = rand_bern(self.total_nodes)
             clamped_run_mle(batch[ex, :self.hidden_ind], batch[ex, self.out_ind:])
             batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
             # Next clamp down just the input nodes and compute coactivity.
+            self.state = rand_bern(self.total_nodes)
             unclamped_run(batch[ex, :self.hidden_ind])
             batch_coactivity_unclamped = batch_coactivity_unclamped + self.coactivity()
         dW = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
                 
     def coactivity(self):
         return np.outer(self.state, self.state) 
+    
+    def read_output(self, input_state):
+        # Need to fix an input and then run the machine till it has stabilized.
+        # Once stabilized, we can return both the maximizer state as well as the
+        # averages for 100 or so states.
+        visit_list = np.arange(self.total_nodes)  # The array [0 1 ... n-1].
+        for sweep in range(sweep_num):
+            np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
+            for node_num in range(self.total_nodes):
+                node_to_update = visit_list[node_num]
+                self.update(node_to_update)
+            if stabilized == 0:
+                if self.stabilization_check(sweep) == 1:
+                    break
+            if stabilized == 1:
+                self.history = np.vstack((self.history, self.state))
+                self.energy_history[sweep] = self.state_energy()
+        return rand_bern(self.output_size)
         
     
         
