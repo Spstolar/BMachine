@@ -97,7 +97,7 @@ BM_small.run_machine(BM_small.sweeps)
 BM_small.run_machine(200,1)
 
 np.save('energy_small_p1.npy', BM_small.energy_history)
-np.save('stabilization_small.npy', BM.stabilization)
+np.save('stabilization_small.npy', BM_small.stabilization)
 
 
 
