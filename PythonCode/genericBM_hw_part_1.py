@@ -103,3 +103,5 @@ print BM.stabilization[-1,:]
 
 BM.run_machine(200,1)
 print BM.energy_history
+
+np.save('energy_hist_p1.npy', BM.energy_history)
