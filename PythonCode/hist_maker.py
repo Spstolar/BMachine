@@ -12,5 +12,5 @@ plt.title(r'$\int_{\Omega} f(\omega) d\omega$')
 plt.axis([40,160,0,0.03])
 plt.grid(True)
 
-plt.show()
+# plt.show()  # If you don't want to save it, but just view it, use this line.
 plt.savefig('example_hist.png')
