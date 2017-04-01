@@ -17,7 +17,7 @@ def bits(f):
 i = 1
 pic_count = 0
 
-for b in bits(open('train-images-binary', 'r')):
+for b in bits(open('test-images-binary', 'r')):
     if i <= 128:   # Preamble
         print b,
         if (i % 32) == 0:
