@@ -15,6 +15,7 @@ class BoltzmannMachine(object):
         self.stabilization = np.zeros((self.sweeps, self.total_nodes))
         self.threshold = .01
         self.energy_history = np.zeros(200)
+        self.initial_weights = self.weights
 
     def print_current_state(self):
         print self.state
@@ -81,27 +82,24 @@ class BoltzmannMachine(object):
         return np.mean(self.history, axis=0)
 
 
-start_time = time.time()
+
 
 BM = BoltzmannMachine(0, 30, 0)
-
-# BM.print_current_state()
-
 BM.run_machine(BM.sweeps)
-
-# print BM.history
-
-# print BM.empirical_mean()
-
-print BM.stabilization
-
-end_time = time.time()
-
-print end_time - start_time
-
-print BM.stabilization[-1,:]
-
 BM.run_machine(200,1)
-print BM.energy_history
 
-np.save('energy_hist_p1.npy', BM.energy_history)
+np.save('energy_large_p1.npy', BM.energy_history)
+np.save('stabilization_large.npy', BM.stabilization)
+
+BM_small = BoltzmannMachine(0, 30, 0)
+BM_small.weights = BM.initial_weights / 10
+BM_small.run_machine(BM_small.sweeps)
+BM_small.run_machine(200,1)
+
+np.save('energy_small_p1.npy', BM_small.energy_history)
+np.save('stabilization_small.npy', BM.stabilization)
+
+
+
+
+
