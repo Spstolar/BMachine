@@ -23,8 +23,8 @@ for b in bits(open('train-images-binary', 'r')):
         if (i % 32) == 0:
             print "\n"
     elif i <= pic_length + 128:
-        image = (i - 128) / pic_length  # Which example this belongs to.
-        bit = ((i - 128) % pic_length) - 1  # Which column/bit
+        image = (i - 128 - 1) / pic_length  # Which example this belongs to.
+        bit = ((i - 128 - 1) % pic_length)  # Which column/bit
         test_set[image, bit] = b
 
 
