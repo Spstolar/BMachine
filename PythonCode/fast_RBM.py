@@ -1,13 +1,16 @@
 import numpy as np
 import time
 
+
 def sigmoid(input):
     return 1.0 / (1 + np.exp(-input))
+
 
 def rand_bern(length):
     # Return a random vector of -1s and 1s.
     rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
     return (rand_vec - .5) * 2  # Convert to -1, +1 state.
+
 
 class BoltzmannMachine(object):
     def __init__(self, input_size, hidden_size, output_size):
@@ -127,7 +130,7 @@ class BoltzmannMachine(object):
             for node_num in range(self.hidden_size + self.output_size):
                 node_to_update = visit_list[node_num]
                 self.update(node_to_update)
-		
+
     def clamped_run_mle(self, in_state, out_state):
         # Update the machine using the maximum likelihood states. 
         self.state[:self.hidden_ind] = in_state
@@ -144,7 +147,8 @@ class BoltzmannMachine(object):
         for it in range(iterations):
             # shuffle data
             for b in range(num_batches):
-                batch_process(batch)
+                batch = example_set[b, :]
+                self.batch_process(batch)
                             
     def batch_process(self, batch, batch_size):
         batch_coactivity_clampled = np.zeros((self.total_nodes,self.total_nodes))
@@ -152,11 +156,11 @@ class BoltzmannMachine(object):
         for ex in range(batch_size):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern(self.total_nodes)
-            clamped_run_mle(batch[ex, :self.hidden_ind], batch[ex, self.out_ind:])
+            self.clamped_run_mle(batch[ex, :self.hidden_ind], batch[ex, self.out_ind:])
             batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern(self.total_nodes)
-            unclamped_run(batch[ex, :self.hidden_ind])
+            self.unclamped_run(batch[ex, :self.hidden_ind])
             batch_coactivity_unclamped = batch_coactivity_unclamped + self.coactivity()
         dW = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
                 
