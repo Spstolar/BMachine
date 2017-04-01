@@ -2,8 +2,8 @@ import numpy as np
 import time
 
 
-def sigmoid(input):
-    return 1.0 / (1 + np.exp(-input))
+def sigmoid(input_comb):
+    return 1.0 / (1 + np.exp(-input_comb))
 
 
 def rand_bern(length):
@@ -24,7 +24,12 @@ class BoltzmannMachine(object):
         self.state = rand_bern(self.total_nodes)
         self.weights = self.create_random_weights()
         self.correct_weights()
-        
+
+        self.batch_size = 100
+        self.inc = 80
+        self.learning_rate = 0.5
+        self.rate = self.learning_rate
+
         self.history = self.state
         self.sweeps = 1000
         self.stabilization = np.zeros((self.sweeps, self.total_nodes))
@@ -103,7 +108,6 @@ class BoltzmannMachine(object):
         self.weights[-self.output_size:,-self.output_size:] = 0
         self.weights[self.hidden_ind:,:self.hidden_ind] = 0
         self.weights[:self.hidden_ind, self.hidden_ind:] = 0
-        
 
     def empirical_mean(self):
         return np.mean(self.history, axis=0)
@@ -143,14 +147,29 @@ class BoltzmannMachine(object):
         for node_num in range(self.hidden_size + self.output_size):
             self.mle_update(node_num + self.input_size)
                     
-    def training(self, example_set, batch_size, num_batches, iterations):
-        for it in range(iterations):
-            # shuffle data
-            for b in range(num_batches):
-                batch = example_set[b, :]
+    def training(self, example_set, num_batches, iterations):
+        # Compute how to go through the batches.
+        batch_size = self.batchSize
+        inc = self.inc  # This is to allow overlap between batches, let it be about 80% of the batch size.
+        set_size = example_set.shape[0]
+        batches_per_iteration = int(set_size / batch_size)
+
+        for it in range(self.iterations):
+            print "Iteration: " + str(it)
+            for batch_num, b in enumerate(range(0, set_size - inc, inc)):
+                batch = example_set[b:b + batch_size, :]
+                num_batches_seen = batch_num + batches_per_iteration * i
+                # learning rate decay change by batch number
+                # self.rate = self.learning_rate / (num + 1)
                 self.batch_process(batch)
-                            
-    def batch_process(self, batch, batch_size):
+
+            # Manually calculate last batch. It includes some of the first and some of the last examples.
+            batch = np.vstack((example_set[:inc, :], example_set[:(batch_size - inc), :]))
+            self.batch_process(batch)
+            self.rate = self.learning_rate / (1.0 + it)
+
+    def batch_process(self, batch):
+        batch_size = self.batch_size
         batch_coactivity_clampled = np.zeros((self.total_nodes,self.total_nodes))
         batch_coactivity_unclampled = np.zeros((self.total_nodes,self.total_nodes))
         for ex in range(batch_size):
