@@ -23,6 +23,8 @@ else:
     plt.ylabel('Node Number')
     plt.savefig('stabilization_small.png')
 
+    plt.clf()
+
     large_plot = np.load('stabilization_large.npy')
     img = large_plot[:112, :].T
     imgplot = plt.imshow(img)
