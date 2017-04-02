@@ -166,10 +166,12 @@ class BoltzmannMachine(object):
         return weights
     
     def correct_weights(self):
-        self.weights[:self.hidden_ind, :self.hidden_ind] = 0
-        self.weights[-self.output_size:, -self.output_size:] = 0
-        self.weights[self.hidden_ind:, :self.hidden_ind] = 0
-        self.weights[:self.hidden_ind, self.hidden_ind:] = 0
+        self.weights[:self.hidden_ind, :self.hidden_ind] = 0  # forbids connections INP <-> INP
+        self.weights[-self.output_size:, -self.output_size:] = 0  # forbids connections OUT <-> OUT
+        self.weights[-self.output_size:, :self.input_size] = 0  # forbids connections IN -> OUT
+        self.weights[:self.input_size, -self.output_size:] = 0  # forbids connections IN <- OUT
+        # self.weights[self.hidden_ind:, :self.hidden_ind] = 0
+        # self.weights[:self.hidden_ind, self.hidden_ind:] = 0
 
     def empirical_mean(self, history=0):
         """
