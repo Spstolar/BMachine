@@ -11,12 +11,14 @@ def rand_bern(length):
     rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
     return (rand_vec - .5) * 2  # Convert to -1, +1 state.
 
+
 def rand_bern_with_thresh(length, fix1, fix2):
     # Return a random vector of -1s and 1s.
     rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
     rand_vec[fix1] = 1
     rand_vec[fix2] = 1
     return (rand_vec - .5) * 2  # Convert to -1, +1 state.
+
 
 def convert_binary_to_pm1(matrix):
     """
@@ -109,10 +111,9 @@ class BoltzmannMachine(object):
         elif mle == 0:
             for node in range(0, self.total_nodes):
                 plus_prob = self.conditional_prob(node)  # P( x_j = 1 |  all other node states)
-                if plus_prob > .5:
-                    new_state[node] = 1
-                else:
-                    new_state[node] = -1
+                coin_flip = np.random.binomial(1, plus_prob)
+                result = 2 * (coin_flip - .5)  # Convert biased coin flip to -1 or 1.
+                new_state[node] = result
             self.state = new_state
     
     def mle_update(self, node, alter=1):
@@ -286,7 +287,7 @@ class BoltzmannMachine(object):
         for ex in range(batch_size):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
-            self.clamped_run_mle(batch[ex, :], batch[ex, :])
+            self.clamped_run(batch[ex, :], batch[ex, :])
             batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
