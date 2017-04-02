@@ -11,6 +11,12 @@ def rand_bern(length):
     rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
     return (rand_vec - .5) * 2  # Convert to -1, +1 state.
 
+def rand_bern_with_thresh(length, fix1, fix2):
+    # Return a random vector of -1s and 1s.
+    rand_vec = np.random.randint(0, 2, length, dtype=int)  # Begin with a random 0-1 draw.
+    rand_vec[fix1] = 1
+    rand_vec[fix2] = 1
+    return (rand_vec - .5) * 2  # Convert to -1, +1 state.
 
 def convert_binary_to_pm1(matrix):
     """
@@ -24,14 +30,21 @@ def convert_binary_to_pm1(matrix):
 
 class BoltzmannMachine(object):
     def __init__(self, input_size, hidden_size, output_size):
-        self.total_nodes = input_size + hidden_size + output_size
-        self.input_size = input_size
-        self.hidden_size = hidden_size
+        self.input_size = input_size + 1
+        self.hidden_size = hidden_size + 1
         self.output_size = output_size
+        self.total_nodes = self.input_size + self.hidden_size + self.output_size
         self.hidden_ind = input_size  # coordinate index where the hidden layer STARTS
         self.out_ind = input_size + hidden_size  # coordinate index where the output layer STARTS
+        self.input_thresh = self.hidden_ind - 1
+        self.hidden_thresh = self.out_ind - 1
+        self.hidden_nodes = np.arange(self.hidden_ind,self.hidden_thresh)
+        self.out_nodes = np.arange(self.out_ind,self.total_nodes)
+        self.clamped_visit_list = self.hidden_nodes
+        self.unclamped_visit_list = np.hstack((self.hidden_nodes, self.out_nodes))
         
-        self.state = rand_bern(self.total_nodes)
+        self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
+
         self.weights = self.create_random_weights()
         self.correct_weights()
 
@@ -56,7 +69,7 @@ class BoltzmannMachine(object):
         """
         agreement_matrix = np.outer(self.state, self.state)  # The (i,j) entry is 1 if i,j agree, else -1
         energy_contributions = agreement_matrix * self.weights  # Element-wise product.
-        energy = np.sum(energy_contributions)  # Leaving off bias. TODO:Check if this needs a factor of 2 or 1/2.
+        energy = 0.5 * np.sum(energy_contributions)  # Leaving off bias.
         return energy
 
     def state_prob(self):
@@ -122,17 +135,15 @@ class BoltzmannMachine(object):
 
     def run_machine(self, sweep_num, stabilized=0):
         """
-        For sweep_num passes or until it stabilizes, update each of the nodes.
+        For sweep_num passes or until it stabilizes, update each of the nodes, except the inputs and thresholds.
         :param sweep_num: A maximum number of times to update each node.
         :param stabilized: Update the machine until it stabilizes (0), or just run the machine the given amount (1).
         :return:
         """
-        visit_list = np.arange(self.total_nodes)  # The array [0 1 ... n-1].
         for sweep in range(sweep_num):
-            np.random.shuffle(visit_list)  # Shuffle the array [0 1 ... n-1].
-            for node_num in range(self.total_nodes):
-                node_to_update = visit_list[node_num]
-                self.update(node_to_update)
+            np.random.shuffle(self.unclamped_visit_list)
+            for node in self.unclamped_visit_list:
+                self.update(node)
             if stabilized == 0:
                 if self.stabilization_check(sweep) == 1:
                     break
@@ -170,6 +181,8 @@ class BoltzmannMachine(object):
         self.weights[-self.output_size:, -self.output_size:] = 0  # forbids connections OUT <-> OUT
         self.weights[-self.output_size:, :self.input_size] = 0  # forbids connections IN -> OUT
         self.weights[:self.input_size, -self.output_size:] = 0  # forbids connections IN <- OUT
+        self.weights[self.hidden_thresh, self.hidden_ind:self.out_ind] = 0  # forbid hidden_thresh -> hidden
+        self.weights[self.hidden_ind:self.out_ind, self.hidden_thresh] = 0  # forbid hidden -> hidden_thresh
         # self.weights[self.hidden_ind:, :self.hidden_ind] = 0
         # self.weights[:self.hidden_ind, self.hidden_ind:] = 0
 
@@ -196,10 +209,9 @@ class BoltzmannMachine(object):
         self.state[self.out_ind:] = out_state
         visit_list = np.arange(self.hidden_ind, self.out_ind)  
         for sweep in range(sweep_num):
-            np.random.shuffle(visit_list)  
-            for node_num in range(self.hidden_size):
-                node_to_update = visit_list[node_num]
-                self.update(node_to_update)
+            np.random.shuffle(self.clamped_visit_list)
+            for node in range(self.clamped_visit_list):
+                self.update(node)
         
     def unclamped_run(self, in_state, sweep_num=1):
         """
@@ -211,22 +223,21 @@ class BoltzmannMachine(object):
         self.state[:self.hidden_ind] = in_state
         visit_list = np.arange(self.hidden_ind, self.total_nodes)
         for sweep in range(sweep_num):
-            np.random.shuffle(visit_list)  
-            for node_num in range(self.hidden_size + self.output_size):
-                node_to_update = visit_list[node_num]
-                self.update(node_to_update)
+            np.random.shuffle(self.unclamped_visit_list)
+            for node in self.unclamped_visit_list:
+                self.update(node)
 
     def clamped_run_mle(self, in_state, out_state):
         # Update the machine using the maximum likelihood states. 
         self.state[:self.hidden_ind] = in_state
         self.state[self.out_ind:] = out_state
-        for node_num in range(self.hidden_size):
-            self.mle_update(node_num + self.input_size)
+        for node in self.clamped_visit_list:
+            self.mle_update(node)
             
     def unclamped_run_mle(self, in_state):
         self.state[:self.hidden_ind] = in_state
-        for node_num in range(self.hidden_size + self.output_size):
-            self.mle_update(node_num + self.input_size)
+        for node in self.clamped_visit_list:
+            self.mle_update(node)
                     
     def training(self, example_set, iterations):
         """
@@ -274,11 +285,11 @@ class BoltzmannMachine(object):
         batch_coactivity_unclamped = np.zeros((self.total_nodes, self.total_nodes))
         for ex in range(batch_size):
             # First clamp down the input nodes and output nodes and compute coactivity.
-            self.state = rand_bern(self.total_nodes)
+            self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.clamped_run_mle(batch[ex, :], batch[ex, :])
             batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
             # Next clamp down just the input nodes and compute coactivity.
-            self.state = rand_bern(self.total_nodes)
+            self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.unclamped_run(batch[ex, :])
             batch_coactivity_unclamped = batch_coactivity_unclamped + self.coactivity()
         dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
