@@ -78,7 +78,7 @@ class BoltzmannMachine(object):
         :return: Change the state of the node according to the probabilities of the two alternatives.
         """
         plus_prob = self.conditional_prob(node)    # P( x_j = 1 |  all other node states)
-        coin_flip = np.random.binomial(1, plus_prob, 1)
+        coin_flip = np.random.binomial(1, plus_prob)
         result = 2*(coin_flip - .5)  # Convert biased coin flip to -1 or 1.
         self.state[node] = result
 
