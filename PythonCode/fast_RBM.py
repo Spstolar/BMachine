@@ -28,8 +28,8 @@ class BoltzmannMachine(object):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
-        self.hidden_ind = input_size
-        self.out_ind = input_size + hidden_size
+        self.hidden_ind = input_size  # coordinate index where the hidden layer STARTS
+        self.out_ind = input_size + hidden_size  # coordinate index where the output layer STARTS
         
         self.state = rand_bern(self.total_nodes)
         self.weights = self.create_random_weights()
