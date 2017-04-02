@@ -251,9 +251,12 @@ class BoltzmannMachine(object):
                 # num_batches_seen = batch_num + batches_per_iteration * it
                 # self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
+                last_batch_ind = b
 
             # Manually calculate last batch. It includes some of the first and some of the last examples.
-            batch = np.vstack((example_set[:inc, :], example_set[:(batch_size - inc), :]))
+            last_batch_ind = last_batch_ind + inc
+            wrap_around_ind = batch_size - (set_size - last_batch_ind)
+            batch = np.vstack((example_set[last_batch_ind:, :], example_set[:wrap_around_ind, :]))
             self.batch_process(batch)
             self.rate = self.learning_rate / (1.0 + it)
 
