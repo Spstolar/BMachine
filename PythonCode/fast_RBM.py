@@ -245,6 +245,7 @@ class BoltzmannMachine(object):
 
         for it in range(iterations):
             print "Iteration: " + str(it)
+            last_batch_ind = 0  # initialize variable for row index of last batch
             for batch_num, b in enumerate(range(0, set_size - inc, inc)):
                 batch = example_set[b:b + batch_size, :]
                 # To do learning rate decay change by batch number:
