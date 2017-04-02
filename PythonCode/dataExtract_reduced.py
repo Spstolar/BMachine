@@ -1,6 +1,7 @@
 import numpy as np
 
 # url to format of files: http://yann.lecun.com/exdb/mnist/
+# definition of constants corresponding to the MNIST data sets
 num_train_examples = 60000
 num_test_examples = 10000
 num_classes = 10
@@ -22,9 +23,6 @@ def bits(f):
 
 def extract_images_bin2py(num_examples, header_bytes, filename, savefile, pixels_per_image=784):
     dataset = np.zeros((num_examples, pixels_per_image))
-    #train_labels = np.zeros((num_train_examples, num_classes))
-    #test_set = np.zeros((num_test_examples, pixels_per_pic))
-    #test_labels = np.zeros((num_test_examples, num_classes))
 
     byte_count = 1
 
@@ -47,36 +45,7 @@ def extract_images_bin2py(num_examples, header_bytes, filename, savefile, pixels
 # savefile= 'trainSet.npy'
 
 #arguments for test images
-filename='test-images-binary'
-savefile= 'testSet.npy'
+filename = 'test-images-binary'
+savefile = 'testSet.npy'
 
 extract_images_bin2py(num_test_examples, header_bytes_images, filename, savefile)
-# just to remember a quick way of visualizing our data
-'''
-ipython
-Python 2.7.13 (default, Dec 17 2016, 23:03:43) 
-Type "copyright", "credits" or "license" for more information.
-
-IPython 5.3.0 -- An enhanced Interactive Python.
-?         -> Introduction and overview of IPython's features.
-%quickref -> Quick reference.
-help      -> Python's own help system.
-object?   -> Details about 'object', use 'object??' for extra details.
-
-In [1]: %matplotlib
-Using matplotlib backend: MacOSX
-
-In [2]: import matplotlib.pyplot as plt
-
-In [3]: import matplotlib.image as mpimg
-
-In [4]: import numpy as np
-
-In [5]: img=np.random.randint(0,2,size=(28,28
-   ...: ))
-
-In [6]: imgplot=plt.imshow(img
-   ...: )
-
-In [7]: img
-'''
