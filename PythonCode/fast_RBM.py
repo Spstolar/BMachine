@@ -61,7 +61,7 @@ class BoltzmannMachine(object):
 
     def state_prob(self):
         """
-        The (non-normalized) probability of this state. Does the whole calculation rather than just over some
+        The (non-normalized) probability of this configuration. Does the whole calculation rather than just over some
         affected subsets.
         :return: conditional probability of this
         """
