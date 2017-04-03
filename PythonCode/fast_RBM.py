@@ -206,7 +206,7 @@ class BoltzmannMachine(object):
         :param sweep_num: How many times to update the non-clamped nodes.
         :return: Updates the hidden states.
         """
-        self.state[:self.hidden_ind] = in_state
+        self.state[:self.input_thresh] = in_state
         self.state[self.out_ind:] = out_state
         visit_list = np.arange(self.hidden_ind, self.out_ind)  
         for sweep in range(sweep_num):
@@ -221,7 +221,7 @@ class BoltzmannMachine(object):
         :param sweep_num: How many times to update the non-clamped nodes.
         :return: Updates the hidden and output states.
         """
-        self.state[:self.hidden_ind] = in_state
+        self.state[:self.input_thresh] = in_state
         visit_list = np.arange(self.hidden_ind, self.total_nodes)
         for sweep in range(sweep_num):
             np.random.shuffle(self.unclamped_visit_list)
@@ -230,13 +230,13 @@ class BoltzmannMachine(object):
 
     def clamped_run_mle(self, in_state, out_state):
         # Update the machine using the maximum likelihood states. 
-        self.state[:self.hidden_ind] = in_state
+        self.state[:self.input_thresh] = in_state
         self.state[self.out_ind:] = out_state
         for node in self.clamped_visit_list:
             self.mle_update(node)
             
     def unclamped_run_mle(self, in_state):
-        self.state[:self.hidden_ind] = in_state
+        self.state[:self.input_thresh] = in_state
         for node in self.clamped_visit_list:
             self.mle_update(node)
                     
@@ -253,7 +253,7 @@ class BoltzmannMachine(object):
         batch_size = self.batch_size
         inc = self.inc  # This is to allow overlap between batches, let it be about 80% of the batch size.
         set_size = example_set.shape[0]  # How many examples.
-        # batches_per_iteration = int(set_size / batch_size)  # How many batches will be needed.
+        batches_per_iteration = int(set_size / batch_size)  # How many batches will be needed.
 
         for it in range(iterations):
             print "Iteration: " + str(it)
@@ -261,8 +261,8 @@ class BoltzmannMachine(object):
             for batch_num, b in enumerate(range(0, set_size - inc, inc)):
                 batch = example_set[b:b + batch_size, :]
                 # To do learning rate decay change by batch number:
-                # num_batches_seen = batch_num + batches_per_iteration * it
-                # self.rate = self.learning_rate / (num_batches_seen + 1)
+                num_batches_seen = batch_num + batches_per_iteration * it
+                self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
                 last_batch_ind = b
 
@@ -271,7 +271,7 @@ class BoltzmannMachine(object):
             wrap_around_ind = batch_size - (set_size - last_batch_ind)
             batch = np.vstack((example_set[last_batch_ind:, :], example_set[:wrap_around_ind, :]))
             self.batch_process(batch)
-            self.rate = self.learning_rate / (1.0 + it)
+            # self.rate = self.learning_rate / (1.0 + it)
 
     def batch_process(self, batch):
         """
@@ -288,13 +288,13 @@ class BoltzmannMachine(object):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.clamped_run(batch[ex, :], batch[ex, :])
-            batch_coactivity_clamped = batch_coactivity_clamped + self.coactivity()
+            batch_coactivity_clamped += self.coactivity()
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.unclamped_run(batch[ex, :])
-            batch_coactivity_unclamped = batch_coactivity_unclamped + self.coactivity()
+            batch_coactivity_unclamped += self.coactivity(clamped=0)
         dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
-        self.weights += dw  # Not sure if this should be minus. TODO: find the correct rule.
+        self.weights += self.rate * dw  # Not sure if this should be minus. TODO: find the correct rule.
                 
     def coactivity(self, clamped=1, sweeps=1):
         """
@@ -311,7 +311,7 @@ class BoltzmannMachine(object):
             elif clamped == 1 & sweeps > 1:
                 self.clamped_run(self.state[:self.hidden_ind], self.state[self.out_ind:])
 
-        return coactivity_matrix  # TODO: Check how to compute coactivity during training.
+        return coactivity_matrix / sweeps  # TODO: Check how to compute coactivity during training.
     
     def read_output(self, input_state):
         # Need to fix an input and then run the machine till it has stabilized.
@@ -319,13 +319,18 @@ class BoltzmannMachine(object):
         # averages for 100 or so states.
         sweep_num = self.sweeps
         self.unclamped_run(input_state, sweep_num)
-        return self.state[self.out_ind:]  # TODO: Decide on the exact rule for reading off the state.
+        output = np.zeros(self.output_size)
+        post_stab_sweeps = 100
+        for i in range(post_stab_sweeps):
+            self.unclamped_run(input_state)
+            output += self.state[self.out_ind:]
+        return output / post_stab_sweeps  # TODO: Decide on the exact rule for reading off the state.
 
 
 def main():
     start_time = time.time()
 
-    examples = np.zeros((100, 10))
+    examples = np.zeros((500, 10))
     examples = convert_binary_to_pm1(examples)
     input_size = examples.shape[1]
 
