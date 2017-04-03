@@ -251,7 +251,7 @@ class BoltzmannMachine(object):
         batch_size = self.batch_size
         inc = self.inc  # This is to allow overlap between batches, let it be about 80% of the batch size.
         set_size = example_set.shape[0]  # How many examples.
-        batches_per_iteration = int(set_size / inc) + 1 # How many batches will be needed.
+        batches_per_iteration = int(set_size / inc) + 1  # How many batches will be needed.
         record_mse = 0
         ramse = np.zeros(iterations*batches_per_iteration)
 
@@ -266,7 +266,7 @@ class BoltzmannMachine(object):
                 self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
                 if record_mse == 1:
-                    ramse[num_batches_seen] = self.average_rmse(batch)  # Compute the root mean square error for this batch.
+                    ramse[num_batches_seen] = self.average_rmse(batch)  # Compute the batch root mean square error.
                 last_batch_ind = b
 
             # Manually calculate last batch. It includes some of the first and some of the last examples.
@@ -297,11 +297,11 @@ class BoltzmannMachine(object):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.clamped_run(batch[ex, :], batch[ex, :])
-            batch_coactivity_clamped += self.coactivity()
+            batch_coactivity_clamped += self.coactivity(clamped=1, sweeps=5)
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.unclamped_run(batch[ex, :])
-            batch_coactivity_unclamped += self.coactivity(clamped=0)
+            batch_coactivity_unclamped += self.coactivity(clamped=0, sweeps=5)
         dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
         self.weights += self.rate * dw  # Not sure if this should be minus. TODO: find the correct rule.
                 
@@ -336,8 +336,8 @@ class BoltzmannMachine(object):
         average_output = output / float(post_stab_sweeps)
         output_state = np.sign(average_output)
         if print_out == 1:
-            print (output_state == input_state)
-            print np.sum(output_state == input_state)
+            # print (output_state == input_state)
+            print np.sum(np.equal(output_state, input_state))
         return output_state  # TODO: Decide on the exact rule for reading off the state.
 
     def average_rmse(self, example_set):
@@ -355,9 +355,6 @@ class BoltzmannMachine(object):
         return np.sqrt(total_error / float(num_ex))
 
 
-
-
-
 def main():
     start_time = time.time()
 
@@ -365,10 +362,9 @@ def main():
     np.random.permutation(examples)
     # examples = convert_binary_to_pm1(examples)
 
-
     input_size = examples.shape[1]
 
-    BM = BoltzmannMachine(input_size, 30, input_size)
+    BM = BoltzmannMachine(input_size, 10, input_size)
 
     BM.run_machine(BM.sweeps)
     BM.training(examples, 10)
@@ -390,8 +386,6 @@ def main():
     rand_2 = rand_bern(10)
     print 'In: ' + str(rand_1) + 'Out: ' + str(BM.read_output(rand_1))
     print 'In: ' + str(rand_2) + 'Out: ' + str(BM.read_output(rand_2))
-
-
 
     end_time = time.time()
 
