@@ -252,6 +252,7 @@ class BoltzmannMachine(object):
         inc = self.inc  # This is to allow overlap between batches, let it be about 80% of the batch size.
         set_size = example_set.shape[0]  # How many examples.
         batches_per_iteration = int(set_size / batch_size)  # How many batches will be needed.
+        ramse = np.zeros(iterations*batches_per_iteration*2)
 
         for it in range(iterations):
             np.random.permutation(example_set)
@@ -263,6 +264,7 @@ class BoltzmannMachine(object):
                 num_batches_seen = batch_num + batches_per_iteration * it
                 self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
+                # ramse[num_batches_seen] = self.average_rmse(batch)  # Compute the root mean square error for this batch.
                 last_batch_ind = b
 
             # Manually calculate last batch. It includes some of the first and some of the last examples.
@@ -270,7 +272,11 @@ class BoltzmannMachine(object):
             wrap_around_ind = batch_size - (set_size - last_batch_ind)
             batch = np.vstack((example_set[last_batch_ind:, :], example_set[:wrap_around_ind, :]))
             self.batch_process(batch)
+            # ramse[batches_per_iteration * (it + 1) - 1] = self.average_rmse(batch)
+
+
             # self.rate = self.learning_rate / (1.0 + it)
+        np.save('root_avg_mse.npy', ramse)
 
     def batch_process(self, batch):
         """
@@ -312,7 +318,7 @@ class BoltzmannMachine(object):
 
         return coactivity_matrix / sweeps  # TODO: Check how to compute coactivity during training.
     
-    def read_output(self, input_state):
+    def read_output(self, input_state, print_out=1):
         # Need to fix an input and then run the machine till it has stabilized.
         # Once stabilized, we can return both the maximizer state as well as the
         # averages for 100 or so states.
@@ -325,9 +331,27 @@ class BoltzmannMachine(object):
             output += self.state[self.out_ind:]
         average_output = output / float(post_stab_sweeps)
         output_state = np.sign(average_output)
-        print (output_state == input_state)
-        print np.sum(output_state == input_state)
+        if print_out == 1:
+            print (output_state == input_state)
+            print np.sum(output_state == input_state)
         return output_state  # TODO: Decide on the exact rule for reading off the state.
+
+    def average_rmse(self, example_set):
+        """
+        Computes the difference between computed output and input averaged over the examples.
+        :param example_set:
+        :return: The square root of the average mean square error.
+        """
+        num_ex = example_set.shape[0]
+        error = 0
+        for i in range(num_ex):
+            input_state = example_set[i,:]
+            error += np.abs(input_state - self.read_output(input_state, 0))
+        total_error = np.sum(error)
+        return np.sqrt(total_error / float(num_ex))
+
+
+
 
 
 def main():
@@ -343,7 +367,7 @@ def main():
     BM = BoltzmannMachine(input_size, 30, input_size)
 
     BM.run_machine(BM.sweeps)
-    BM.training(examples, 20)
+    BM.training(examples, 10)
 
     ones_vec = np.ones(5)
     neg_ones_vec = -np.ones(5)
