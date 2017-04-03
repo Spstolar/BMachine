@@ -65,7 +65,7 @@ class BoltzmannMachine(object):
 
         self.batch_size = 500
         self.inc = 400
-        self.learning_rate = .05
+        self.learning_rate = .005
         self.rate = self.learning_rate
 
         self.history = self.state
@@ -324,18 +324,44 @@ class BoltzmannMachine(object):
         :return: Changes the weights of the machine.
         """
         batch_size = self.batch_size
-        batch_coactivity_clamped = np.zeros((self.total_nodes, self.total_nodes))
-        batch_coactivity_unclamped = np.zeros((self.total_nodes, self.total_nodes))
+
+        # 3 submatrices for storing coactivity across the batch.
+        b_clamped_ih = np.zeros((self.input_size,self.hidden_size - 1))  # minus 1 since threshold doesn't connect
+        b_clamped_hh = np.zeros((self.hidden_size - 1, self.hidden_size - 1))  # minus 1 since threshold doesn't connect
+        b_clamped_ho = np.zeros((self.hidden_size, self.output_size))
+
+        b_unclamped_ih = np.zeros((self.input_size,self.hidden_size - 1))
+        b_unclamped_hh = np.zeros((self.hidden_size - 1, self.hidden_size - 1))
+        b_unclamped_ho = np.zeros((self.hidden_size, self.output_size))
+
+        dw = np.zeros((self.total_nodes, self.total_nodes))
+
         for ex in range(batch_size):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.clamped_run(batch[ex, :], batch[ex, :])
-            batch_coactivity_clamped += self.coactivity(clamped=1, sweeps=1)
+            ex_c_ih, ex_c_hh, ex_c_ho = self.coactivity(clamped=1, sweeps=1)  # Store the coactivities for this example.
+            b_clamped_ih += ex_c_ih
+            b_clamped_hh += ex_c_hh
+            b_clamped_ho += ex_c_ho
+
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.unclamped_run(batch[ex, :])
-            batch_coactivity_unclamped += self.coactivity(clamped=0, sweeps=1)
-        dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
+            ex_u_ih, ex_u_hh, ex_u_ho = self.coactivity(clamped=0, sweeps=1)
+            b_unclamped_ih += ex_u_ih
+            b_unclamped_hh += ex_u_hh
+            b_unclamped_ho += ex_u_ho
+
+        b_clamped_ih, b_clamped_hh, b_clamped_ho = b_clamped_ih, b_clamped_hh, b_clamped_ho
+        b_unclamped_ih, b_unclamped_hh, b_unclamped_ho = b_unclamped_ih, b_unclamped_hh, b_unclamped_ho
+
+        dw[self.in_to_hidden] = b_clamped_ih - b_unclamped_ih
+        dw[self.hidden_to_hidden] = b_clamped_hh - b_unclamped_hh
+        dw[self.hidden_to_out] = b_clamped_ho - b_unclamped_ho
+        dw /= batch_size
+        dw = (dw + dw.T)/2  # Since weights are symmetric
+
         self.weights += self.rate * dw  # Not sure if this should be minus. TODO: find the correct rule.
         self.correct_weights()  # Lazy correction.
                 
@@ -346,7 +372,7 @@ class BoltzmannMachine(object):
         :param sweeps: how many times to do a full update and compute the coactivities.
         :return: A matrix of coactivity.
         """
-        coactivity_matrix = np.zeros((self.total_nodes, self.total_nodes))
+        # coactivity_matrix = np.zeros((self.total_nodes, self.total_nodes))
         c_in_to_hidden = np.zeros((self.input_size,self.hidden_size - 1))  # minus 1 since threshold doesn't connect
         c_hidden = np.zeros((self.hidden_size - 1, self.hidden_size - 1))  # minus 1 since threshold doesn't connect
         c_hidden_to_out = np.zeros((self.hidden_size, self.output_size))
@@ -361,11 +387,13 @@ class BoltzmannMachine(object):
             elif clamped == 1 & sweeps > 1:
                 self.clamped_run(self.state[:self.hidden_ind], self.state[self.out_ind:])
 
-        coactivity_matrix[self.in_to_hidden] = c_in_to_hidden
-        coactivity_matrix[self.hidden_to_hidden] = c_hidden
-        coactivity_matrix[self.hidden_to_out] = c_hidden_to_out
-        coactivity_matrix = (coactivity_matrix + coactivity_matrix.T) / 2.0
-        return coactivity_matrix / sweeps  # TODO: Check how to compute coactivity during training.
+        # coactivity_matrix[self.in_to_hidden] = c_in_to_hidden
+        # coactivity_matrix[self.hidden_to_hidden] = c_hidden
+        # coactivity_matrix[self.hidden_to_out] = c_hidden_to_out
+        # coactivity_matrix = (coactivity_matrix + coactivity_matrix.T) / 2.0
+
+        return (c_in_to_hidden/ sweeps), (c_hidden / sweeps), (c_hidden_to_out / sweeps)
+        # TODO: Check how to compute coactivity during training.
     
     def read_output(self, input_state, print_out=1):
         # Need to fix an input and then run the machine till it has stabilized.
