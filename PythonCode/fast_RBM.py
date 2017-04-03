@@ -414,6 +414,25 @@ class BoltzmannMachine(object):
             print np.sum(np.equal(output_state, input_state))
         return output_state  # TODO: Decide on the exact rule for reading off the state.
 
+    def read_hidden(self, example_set):
+        num_ex = example_set.shape[0]
+        num_features = example_set.shape[1]
+        hidden_states = np.zeros((num_ex, self.hidden_size - 1))
+        for j in range(num_ex):
+            sweep_num = 100
+            input_state = example_set[j,:]
+            self.unclamped_run(input_state, sweep_num)
+            hidden = np.zeros(self.hidden_size - 1, dtype=float)
+            post_stab_sweeps = 100
+            for i in range(post_stab_sweeps):
+                self.unclamped_run(input_state)
+                hidden += self.state[self.hidden_ind:self.hidden_thresh]
+            average_output = hidden / float(post_stab_sweeps)
+            hidden_states[j,:] = np.sign(average_output)
+        np.save('hidden_activations', hidden_states)
+
+
+
     def average_rmse(self, example_set):
         """
         Computes the difference between computed output and input averaged over the examples.
@@ -444,7 +463,7 @@ def main():
 
     # input_size = 3
 
-    BM = BoltzmannMachine(input_size, 30, input_size)
+    BM = BoltzmannMachine(input_size, 300, input_size)
 
     # BM.weights = np.ones((11,11))
     # print BM.weights
@@ -452,29 +471,31 @@ def main():
     # print BM.weights
 
     BM.run_machine(BM.sweeps)
-    BM.training(examples, 3)
+    # BM.training(examples, 3)
+    BM.weights = np.load('trained_weights.npy')
+    BM.read_hidden(examples)
 
-    ones_vec = np.ones(5)
-    neg_ones_vec = -np.ones(5)
-
-    vec_1 = np.hstack((ones_vec, neg_ones_vec))
-    vec_2 = np.hstack((ones_vec, ones_vec))
-    vec_3 = np.hstack((neg_ones_vec, ones_vec))
-    vec_4 = np.hstack((neg_ones_vec, neg_ones_vec))
-
-    print BM.read_output(vec_1)
-    print BM.read_output(vec_2)
-    print BM.read_output(vec_3)
-    print BM.read_output(vec_4)
-
-    print 'Random vectors: '
-    score = 0
-    for r in range(10):
-        rand = rand_bern(10)
-        output_state = BM.read_output(rand)
-        score += np.sum(np.equal(output_state, rand))
-        print 'In: ' + str(rand) + 'Out: ' + str(output_state)
-    print str(score) + 'out of 100'
+    # ones_vec = np.ones(5)
+    # neg_ones_vec = -np.ones(5)
+    #
+    # vec_1 = np.hstack((ones_vec, neg_ones_vec))
+    # vec_2 = np.hstack((ones_vec, ones_vec))
+    # vec_3 = np.hstack((neg_ones_vec, ones_vec))
+    # vec_4 = np.hstack((neg_ones_vec, neg_ones_vec))
+    #
+    # print BM.read_output(vec_1)
+    # print BM.read_output(vec_2)
+    # print BM.read_output(vec_3)
+    # print BM.read_output(vec_4)
+    #
+    # print 'Random vectors: '
+    # score = 0
+    # for r in range(10):
+    #     rand = rand_bern(10)
+    #     output_state = BM.read_output(rand)
+    #     score += np.sum(np.equal(output_state, rand))
+    #     print 'In: ' + str(rand) + 'Out: ' + str(output_state)
+    # print str(score) + 'out of 100'
 
     np.save('trained_weights.npy',BM.weights)
 
