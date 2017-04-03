@@ -36,12 +36,12 @@ class BoltzmannMachine(object):
         self.hidden_size = hidden_size + 1
         self.output_size = output_size
         self.total_nodes = self.input_size + self.hidden_size + self.output_size
-        self.hidden_ind = input_size  # coordinate index where the hidden layer STARTS
-        self.out_ind = input_size + hidden_size  # coordinate index where the output layer STARTS
+        self.hidden_ind = self.input_size  # coordinate index where the hidden layer STARTS
+        self.out_ind = self.input_size + self.hidden_size  # coordinate index where the output layer STARTS
         self.input_thresh = self.hidden_ind - 1
         self.hidden_thresh = self.out_ind - 1
-        self.hidden_nodes = np.arange(self.hidden_ind,self.hidden_thresh)
-        self.out_nodes = np.arange(self.out_ind,self.total_nodes)
+        self.hidden_nodes = np.arange(self.hidden_ind, self.hidden_thresh)
+        self.out_nodes = np.arange(self.out_ind, self.total_nodes)
         self.clamped_visit_list = self.hidden_nodes
         self.unclamped_visit_list = np.hstack((self.hidden_nodes, self.out_nodes))
         
@@ -56,7 +56,7 @@ class BoltzmannMachine(object):
         self.rate = self.learning_rate
 
         self.history = self.state
-        self.sweeps = 1000
+        self.sweeps = 100
         self.stabilization = np.zeros((self.sweeps, self.total_nodes))
         self.threshold = .01
         self.energy_history = np.zeros(200)
@@ -208,10 +208,9 @@ class BoltzmannMachine(object):
         """
         self.state[:self.input_thresh] = in_state
         self.state[self.out_ind:] = out_state
-        visit_list = np.arange(self.hidden_ind, self.out_ind)  
         for sweep in range(sweep_num):
             np.random.shuffle(self.clamped_visit_list)
-            for node in range(self.clamped_visit_list):
+            for node in self.clamped_visit_list:
                 self.update(node)
         
     def unclamped_run(self, in_state, sweep_num=1):
@@ -222,7 +221,6 @@ class BoltzmannMachine(object):
         :return: Updates the hidden and output states.
         """
         self.state[:self.input_thresh] = in_state
-        visit_list = np.arange(self.hidden_ind, self.total_nodes)
         for sweep in range(sweep_num):
             np.random.shuffle(self.unclamped_visit_list)
             for node in self.unclamped_visit_list:
@@ -267,7 +265,7 @@ class BoltzmannMachine(object):
                 last_batch_ind = b
 
             # Manually calculate last batch. It includes some of the first and some of the last examples.
-            last_batch_ind = last_batch_ind + inc
+            last_batch_ind += inc
             wrap_around_ind = batch_size - (set_size - last_batch_ind)
             batch = np.vstack((example_set[last_batch_ind:, :], example_set[:wrap_around_ind, :]))
             self.batch_process(batch)
