@@ -254,6 +254,7 @@ class BoltzmannMachine(object):
         batches_per_iteration = int(set_size / batch_size)  # How many batches will be needed.
 
         for it in range(iterations):
+            np.random.permutation(example_set)
             print "Iteration: " + str(it)
             last_batch_ind = 0  # initialize variable for row index of last batch
             for batch_num, b in enumerate(range(0, set_size - inc, inc)):
@@ -323,13 +324,17 @@ class BoltzmannMachine(object):
             self.unclamped_run(input_state)
             output += self.state[self.out_ind:]
         average_output = output / float(post_stab_sweeps)
-        return np.sign(average_output)  # TODO: Decide on the exact rule for reading off the state.
+        output_state = np.sign(average_output)
+        print (output_state == input_state)
+        print np.sum(output_state == input_state)
+        return output_state  # TODO: Decide on the exact rule for reading off the state.
 
 
 def main():
     start_time = time.time()
 
     examples = np.load('toy_example_set.npy')
+    np.random.permutation(examples)
     # examples = convert_binary_to_pm1(examples)
 
 
@@ -338,7 +343,7 @@ def main():
     BM = BoltzmannMachine(input_size, 30, input_size)
 
     BM.run_machine(BM.sweeps)
-    BM.training(examples, 10)
+    BM.training(examples, 20)
 
     ones_vec = np.ones(5)
     neg_ones_vec = -np.ones(5)
