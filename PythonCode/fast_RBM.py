@@ -317,25 +317,48 @@ class BoltzmannMachine(object):
         # averages for 100 or so states.
         sweep_num = self.sweeps
         self.unclamped_run(input_state, sweep_num)
-        output = np.zeros(self.output_size)
+        output = np.zeros(self.output_size, dtype=float)
         post_stab_sweeps = 100
         for i in range(post_stab_sweeps):
             self.unclamped_run(input_state)
             output += self.state[self.out_ind:]
-        return output / post_stab_sweeps  # TODO: Decide on the exact rule for reading off the state.
+        average_output = output / float(post_stab_sweeps)
+        return np.sign(average_output)  # TODO: Decide on the exact rule for reading off the state.
 
 
 def main():
     start_time = time.time()
 
-    examples = np.zeros((500, 10))
-    examples = convert_binary_to_pm1(examples)
+    examples = np.load('toy_example_set.npy')
+    # examples = convert_binary_to_pm1(examples)
+
+
     input_size = examples.shape[1]
 
     BM = BoltzmannMachine(input_size, 30, input_size)
 
     BM.run_machine(BM.sweeps)
     BM.training(examples, 10)
+
+    ones_vec = np.ones(5)
+    neg_ones_vec = -np.ones(5)
+
+    vec_1 = np.hstack((ones_vec, neg_ones_vec))
+    vec_2 = np.hstack((ones_vec, ones_vec))
+    vec_3 = np.hstack((neg_ones_vec, ones_vec))
+    vec_4 = np.hstack((neg_ones_vec, neg_ones_vec))
+
+    print BM.read_output(vec_1)
+    print BM.read_output(vec_2)
+    print BM.read_output(vec_3)
+    print BM.read_output(vec_4)
+
+    rand_1 = rand_bern(10)
+    rand_2 = rand_bern(10)
+    print 'In: ' + str(rand_1) + 'Out: ' + str(BM.read_output(rand_1))
+    print 'In: ' + str(rand_2) + 'Out: ' + str(BM.read_output(rand_2))
+
+
 
     end_time = time.time()
 
