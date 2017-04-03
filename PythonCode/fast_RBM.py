@@ -251,8 +251,9 @@ class BoltzmannMachine(object):
         batch_size = self.batch_size
         inc = self.inc  # This is to allow overlap between batches, let it be about 80% of the batch size.
         set_size = example_set.shape[0]  # How many examples.
-        batches_per_iteration = int(set_size / batch_size)  # How many batches will be needed.
-        ramse = np.zeros(iterations*batches_per_iteration*2)
+        batches_per_iteration = int(set_size / inc) + 1 # How many batches will be needed.
+        record_mse = 0
+        ramse = np.zeros(iterations*batches_per_iteration)
 
         for it in range(iterations):
             np.random.permutation(example_set)
@@ -264,7 +265,8 @@ class BoltzmannMachine(object):
                 num_batches_seen = batch_num + batches_per_iteration * it
                 self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
-                # ramse[num_batches_seen] = self.average_rmse(batch)  # Compute the root mean square error for this batch.
+                if record_mse == 1:
+                    ramse[num_batches_seen] = self.average_rmse(batch)  # Compute the root mean square error for this batch.
                 last_batch_ind = b
 
             # Manually calculate last batch. It includes some of the first and some of the last examples.
@@ -272,11 +274,13 @@ class BoltzmannMachine(object):
             wrap_around_ind = batch_size - (set_size - last_batch_ind)
             batch = np.vstack((example_set[last_batch_ind:, :], example_set[:wrap_around_ind, :]))
             self.batch_process(batch)
-            # ramse[batches_per_iteration * (it + 1) - 1] = self.average_rmse(batch)
+            if record_mse == 1:
+                ramse[batches_per_iteration * (it + 1)-1] = self.average_rmse(batch)
 
-
-            # self.rate = self.learning_rate / (1.0 + it)
-        np.save('root_avg_mse.npy', ramse)
+            # self.rate = self.learning_rate / (1.0 + it)  # If we want to decrease the rate more slowly.
+        if record_mse == 1:
+            print ramse
+            np.save('root_avg_mse.npy', ramse)
 
     def batch_process(self, batch):
         """
