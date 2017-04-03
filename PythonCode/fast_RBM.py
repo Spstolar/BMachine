@@ -59,6 +59,10 @@ class BoltzmannMachine(object):
         self.weights = self.create_random_weights()
         self.correct_weights()
 
+        self.in_to_hidden = np.ix_(np.arange(self.hidden_ind), self.hidden_nodes)
+        self.hidden_to_hidden = np.ix_(self.hidden_nodes, self.hidden_nodes)
+        self.hidden_to_out = np.ix_(np.arange(self.hidden_ind,self.out_ind), self.out_nodes)
+
         self.batch_size = 500
         self.inc = 400
         self.learning_rate = .05
@@ -191,10 +195,22 @@ class BoltzmannMachine(object):
         self.weights[-self.output_size:, -self.output_size:] = 0  # forbids connections OUT <-> OUT
         self.weights[-self.output_size:, :self.input_size] = 0  # forbids connections IN -> OUT
         self.weights[:self.input_size, -self.output_size:] = 0  # forbids connections IN <- OUT
-        self.weights[self.hidden_thresh, self.hidden_ind:self.out_ind] = 0  # forbid hidden_thresh -> hidden
-        self.weights[self.hidden_ind:self.out_ind, self.hidden_thresh] = 0  # forbid hidden -> hidden_thresh
+        self.weights[self.hidden_thresh, :self.out_ind] = 0  # forbid hidden_thresh -> hidden & in
+        self.weights[:self.out_ind, self.hidden_thresh] = 0  # forbid hidden -> hidden_thresh
+        np.fill_diagonal(self.weights, 0)
         # self.weights[self.hidden_ind:, :self.hidden_ind] = 0
         # self.weights[:self.hidden_ind, self.hidden_ind:] = 0
+
+    def check_weights(self):
+        w = 0
+        w += np.sum(self.weights[:self.hidden_ind, :self.hidden_ind])
+        w += np.sum(self.weights[-self.output_size:, -self.output_size:])
+        w += np.sum(self.weights[-self.output_size:, :self.input_size])
+        w += np.sum(self.weights[:self.input_size, -self.output_size:])
+        w += np.sum(self.weights[self.hidden_thresh, self.hidden_ind:self.out_ind])
+        w += np.sum(self.weights[self.hidden_ind:self.out_ind, self.hidden_thresh])
+        w += np.sum(self.weights.diagonal())
+        print 'Sum of the non-connecting weights: ' + str(w)
 
     def empirical_mean(self, history=0):
         """
@@ -263,6 +279,7 @@ class BoltzmannMachine(object):
         batches_per_iteration = int(set_size / inc) + 1  # How many batches will be needed.
         record_mse = 0
         ramse = np.zeros(iterations*batches_per_iteration)
+        testing = 1
 
         for it in range(iterations):
             np.random.permutation(example_set)
@@ -272,7 +289,13 @@ class BoltzmannMachine(object):
                 batch = example_set[b:b + batch_size, :]
                 # To do learning rate decay change by batch number:
                 num_batches_seen = batch_num + batches_per_iteration * it
-                print num_batches_seen
+                if testing == 1:
+                    print 'Working on batch ' + str(num_batches_seen)
+                    print 'Threshold units are at ' + str(self.state[self.input_thresh]) + ' and ' + str(self.state[self.hidden_thresh])
+                    print 'Current weights: ' + str(self.weights)
+                    print 'Current sum of weights: ' + str(np.sum(self.weights))
+                    self.check_weights()
+
                 self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
                 if record_mse == 1:
@@ -314,6 +337,7 @@ class BoltzmannMachine(object):
             batch_coactivity_unclamped += self.coactivity(clamped=0, sweeps=1)
         dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
         self.weights += self.rate * dw  # Not sure if this should be minus. TODO: find the correct rule.
+        self.correct_weights()  # Lazy correction.
                 
     def coactivity(self, clamped=1, sweeps=1):
         """
@@ -323,13 +347,24 @@ class BoltzmannMachine(object):
         :return: A matrix of coactivity.
         """
         coactivity_matrix = np.zeros((self.total_nodes, self.total_nodes))
+        c_in_to_hidden = np.zeros((self.input_size,self.hidden_size - 1))  # minus 1 since threshold doesn't connect
+        c_hidden = np.zeros((self.hidden_size - 1, self.hidden_size - 1))  # minus 1 since threshold doesn't connect
+        c_hidden_to_out = np.zeros((self.hidden_size, self.output_size))
+
         for s in range(0, sweeps):
-            coactivity_matrix += np.outer(self.state, self.state)
+            c_in_to_hidden += np.outer(self.state[:self.hidden_ind], self.state[self.hidden_nodes])
+            c_hidden += np.outer(self.state[self.hidden_nodes], self.state[self.hidden_nodes])
+            c_hidden_to_out += np.outer(self.state[self.hidden_ind:self.out_ind], self.state[self.out_nodes])
+
             if clamped == 0 & sweeps > 1:
                 self.unclamped_run(self.state[:self.hidden_ind])
             elif clamped == 1 & sweeps > 1:
                 self.clamped_run(self.state[:self.hidden_ind], self.state[self.out_ind:])
 
+        coactivity_matrix[self.in_to_hidden] = c_in_to_hidden
+        coactivity_matrix[self.hidden_to_hidden] = c_hidden
+        coactivity_matrix[self.hidden_to_out] = c_hidden_to_out
+        coactivity_matrix = (coactivity_matrix + coactivity_matrix.T) / 2.0
         return coactivity_matrix / sweeps  # TODO: Check how to compute coactivity during training.
     
     def read_output(self, input_state, print_out=1):
@@ -379,10 +414,17 @@ def main():
 
     input_size = examples.shape[1]
 
+    # input_size = 3
+
     BM = BoltzmannMachine(input_size, 30, input_size)
 
+    # BM.weights = np.ones((11,11))
+    # print BM.weights
+    # BM.correct_weights()
+    # print BM.weights
+
     BM.run_machine(BM.sweeps)
-    BM.training(examples, 10)
+    BM.training(examples, 3)
 
     ones_vec = np.ones(5)
     neg_ones_vec = -np.ones(5)
@@ -406,6 +448,7 @@ def main():
         print 'In: ' + str(rand) + 'Out: ' + str(output_state)
     print str(score) + 'out of 100'
 
+    np.save('trained_weights.npy',BM.weights)
 
     end_time = time.time()
 
