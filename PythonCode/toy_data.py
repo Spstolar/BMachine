@@ -1,6 +1,7 @@
 import numpy as np
 
-num_examples = 1000
+num_examples = 10000
+num_type = num_examples / 4
 
 ones_vec = np.ones(5)
 neg_ones_vec = -np.ones(5)
@@ -17,6 +18,6 @@ vecs = np.vstack((first, second))
 examples = np.zeros((num_examples, 10))
 
 for i in range(4):
-    examples[i*250:(i+1)*250, :] = np.tile(vecs[i, :],(250, 1))
+    examples[i*num_type:(i+1)*num_type, :] = np.tile(vecs[i, :], (num_type, 1))
 
 np.save('toy_example_set.npy', examples)

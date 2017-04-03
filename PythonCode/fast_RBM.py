@@ -1,6 +1,15 @@
 import numpy as np
 import time
 
+'''
+Parameters to modulate:
+    Learning rate = how much to change the weights by for each batch
+    Batch size = how many examples to use for weight change
+    Coactivity sweeps = how many sweeps to compute coactivity for given weights
+    Readout sweeps = how many sweeps to run before getting a readout
+    Size of training set = how many training examples you'll use
+    iterations = how many times to run through the training set
+'''
 
 def sigmoid(input_comb):
     return 1.0 / (1 + np.exp(-input_comb))
@@ -50,9 +59,9 @@ class BoltzmannMachine(object):
         self.weights = self.create_random_weights()
         self.correct_weights()
 
-        self.batch_size = 100
-        self.inc = 80
-        self.learning_rate = 0.5
+        self.batch_size = 500
+        self.inc = 400
+        self.learning_rate = .05
         self.rate = self.learning_rate
 
         self.history = self.state
@@ -263,6 +272,7 @@ class BoltzmannMachine(object):
                 batch = example_set[b:b + batch_size, :]
                 # To do learning rate decay change by batch number:
                 num_batches_seen = batch_num + batches_per_iteration * it
+                print num_batches_seen
                 self.rate = self.learning_rate / (num_batches_seen + 1)
                 self.batch_process(batch)
                 if record_mse == 1:
@@ -297,11 +307,11 @@ class BoltzmannMachine(object):
             # First clamp down the input nodes and output nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.clamped_run(batch[ex, :], batch[ex, :])
-            batch_coactivity_clamped += self.coactivity(clamped=1, sweeps=5)
+            batch_coactivity_clamped += self.coactivity(clamped=1, sweeps=1)
             # Next clamp down just the input nodes and compute coactivity.
             self.state = rand_bern_with_thresh(self.total_nodes, self.input_thresh, self.hidden_thresh)
             self.unclamped_run(batch[ex, :])
-            batch_coactivity_unclamped += self.coactivity(clamped=0, sweeps=5)
+            batch_coactivity_unclamped += self.coactivity(clamped=0, sweeps=1)
         dw = (batch_coactivity_clamped - batch_coactivity_unclamped) / batch_size
         self.weights += self.rate * dw  # Not sure if this should be minus. TODO: find the correct rule.
                 
@@ -326,7 +336,7 @@ class BoltzmannMachine(object):
         # Need to fix an input and then run the machine till it has stabilized.
         # Once stabilized, we can return both the maximizer state as well as the
         # averages for 100 or so states.
-        sweep_num = self.sweeps
+        sweep_num = 1000
         self.unclamped_run(input_state, sweep_num)
         output = np.zeros(self.output_size, dtype=float)
         post_stab_sweeps = 100
@@ -337,6 +347,7 @@ class BoltzmannMachine(object):
         output_state = np.sign(average_output)
         if print_out == 1:
             # print (output_state == input_state)
+            print average_output
             print np.sum(np.equal(output_state, input_state))
         return output_state  # TODO: Decide on the exact rule for reading off the state.
 
@@ -347,24 +358,28 @@ class BoltzmannMachine(object):
         :return: The square root of the average mean square error.
         """
         num_ex = example_set.shape[0]
-        error = 0
+        error = np.zeros(example_set.shape[1])
         for i in range(num_ex):
             input_state = example_set[i,:]
             error += np.abs(input_state - self.read_output(input_state, 0))
         total_error = np.sum(error)
         return np.sqrt(total_error / float(num_ex))
 
+    # def modulate_params(self):
+
 
 def main():
     start_time = time.time()
 
-    examples = np.load('toy_example_set.npy')
-    np.random.permutation(examples)
-    # examples = convert_binary_to_pm1(examples)
+    # examples = np.load('toy_example_set.npy')
+    # np.random.permutation(examples)
+
+    examples = np.load('testSetSimple.npy')
+    examples = convert_binary_to_pm1(examples)
 
     input_size = examples.shape[1]
 
-    BM = BoltzmannMachine(input_size, 10, input_size)
+    BM = BoltzmannMachine(input_size, 30, input_size)
 
     BM.run_machine(BM.sweeps)
     BM.training(examples, 10)
@@ -382,10 +397,15 @@ def main():
     print BM.read_output(vec_3)
     print BM.read_output(vec_4)
 
-    rand_1 = rand_bern(10)
-    rand_2 = rand_bern(10)
-    print 'In: ' + str(rand_1) + 'Out: ' + str(BM.read_output(rand_1))
-    print 'In: ' + str(rand_2) + 'Out: ' + str(BM.read_output(rand_2))
+    print 'Random vectors: '
+    score = 0
+    for r in range(10):
+        rand = rand_bern(10)
+        output_state = BM.read_output(rand)
+        score += np.sum(np.equal(output_state, rand))
+        print 'In: ' + str(rand) + 'Out: ' + str(output_state)
+    print str(score) + 'out of 100'
+
 
     end_time = time.time()
 
