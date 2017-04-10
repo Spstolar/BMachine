@@ -399,10 +399,10 @@ class BoltzmannMachine(object):
         # Need to fix an input and then run the machine till it has stabilized.
         # Once stabilized, we can return both the maximizer state as well as the
         # averages for 100 or so states.
-        sweep_num = 1000
+        sweep_num = 10
         self.unclamped_run(input_state, sweep_num)
         output = np.zeros(self.output_size, dtype=float)
-        post_stab_sweeps = 100
+        post_stab_sweeps = 10
         for i in range(post_stab_sweeps):
             self.unclamped_run(input_state)
             output += self.state[self.out_ind:]
@@ -419,11 +419,13 @@ class BoltzmannMachine(object):
         num_features = example_set.shape[1]
         hidden_states = np.zeros((num_ex, self.hidden_size - 1))
         for j in range(num_ex):
-            sweep_num = 100
+            if (j % 100) == 0:
+                print 'Example ' + str(j)
+            sweep_num = 10
             input_state = example_set[j,:]
             self.unclamped_run(input_state, sweep_num)
             hidden = np.zeros(self.hidden_size - 1, dtype=float)
-            post_stab_sweeps = 100
+            post_stab_sweeps = 10
             for i in range(post_stab_sweeps):
                 self.unclamped_run(input_state)
                 hidden += self.state[self.hidden_ind:self.hidden_thresh]
@@ -450,57 +452,70 @@ class BoltzmannMachine(object):
     # def modulate_params(self):
 
 
+def simple_example():
+    examples = np.load('toy_example_set.npy')
+    np.random.permutation(examples)
+
+    input_size = 3
+    BM = BoltzmannMachine(input_size, 3, input_size)
+
+    BM.weights = np.ones((11,11))
+    print BM.weights
+    BM.correct_weights()
+    print BM.weights
+
+    BM.run_machine(BM.sweeps)
+    BM.training(examples, 3)
+
+    ones_vec = np.ones(5)
+    neg_ones_vec = -np.ones(5)
+
+    vec_1 = np.hstack((ones_vec, neg_ones_vec))
+    vec_2 = np.hstack((ones_vec, ones_vec))
+    vec_3 = np.hstack((neg_ones_vec, ones_vec))
+    vec_4 = np.hstack((neg_ones_vec, neg_ones_vec))
+
+    print BM.read_output(vec_1)
+    print BM.read_output(vec_2)
+    print BM.read_output(vec_3)
+    print BM.read_output(vec_4)
+
+    print 'Random vectors: '
+    score = 0
+    for r in range(10):
+        rand = rand_bern(10)
+        output_state = BM.read_output(rand)
+        score += np.sum(np.equal(output_state, rand))
+        print 'In: ' + str(rand) + 'Out: ' + str(output_state)
+    print str(score) + 'out of 100'
+
 def main():
     start_time = time.time()
-
-    # examples = np.load('toy_example_set.npy')
-    # np.random.permutation(examples)
 
     examples = np.load('testSetSimple.npy')
     examples = convert_binary_to_pm1(examples)
 
     input_size = examples.shape[1]
 
-    # input_size = 3
-
     BM = BoltzmannMachine(input_size, 300, input_size)
-
-    # BM.weights = np.ones((11,11))
-    # print BM.weights
-    # BM.correct_weights()
-    # print BM.weights
-
-    BM.run_machine(BM.sweeps)
-    # BM.training(examples, 3)
-    BM.weights = np.load('trained_weights.npy')
-    BM.read_hidden(examples)
-
-    # ones_vec = np.ones(5)
-    # neg_ones_vec = -np.ones(5)
-    #
-    # vec_1 = np.hstack((ones_vec, neg_ones_vec))
-    # vec_2 = np.hstack((ones_vec, ones_vec))
-    # vec_3 = np.hstack((neg_ones_vec, ones_vec))
-    # vec_4 = np.hstack((neg_ones_vec, neg_ones_vec))
-    #
-    # print BM.read_output(vec_1)
-    # print BM.read_output(vec_2)
-    # print BM.read_output(vec_3)
-    # print BM.read_output(vec_4)
-    #
-    # print 'Random vectors: '
-    # score = 0
-    # for r in range(10):
-    #     rand = rand_bern(10)
-    #     output_state = BM.read_output(rand)
-    #     score += np.sum(np.equal(output_state, rand))
-    #     print 'In: ' + str(rand) + 'Out: ' + str(output_state)
-    # print str(score) + 'out of 100'
 
     np.save('trained_weights.npy',BM.weights)
 
     end_time = time.time()
 
+    print "Training time: "
+
+    print end_time - start_time
+
+def read():
+    start_time = time.time()
+    BM.weights = np.load('trained_weights.npy')
+    print "Starting Hidden Layer Reading"
+    BM.read_hidden(examples)
+
+    end_time = time.time()
+
+    print "Reading time: "
     print end_time - start_time
 
 if __name__ == "__main__":
