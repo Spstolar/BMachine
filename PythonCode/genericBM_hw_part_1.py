@@ -1,8 +1,10 @@
 import numpy as np
 import time
 
+
 def sigmoid(input):
     return 1.0 / (1 + np.exp(-input))
+
 
 class BoltzmannMachine(object):
     def __init__(self, input_size, hidden_size, output_size):
@@ -10,12 +12,14 @@ class BoltzmannMachine(object):
         self.state = np.random.randint(0, 2, self.total_nodes, dtype=int)  # Begin with a random 0-1 draw.
         self.state = (self.state - .5) * 2  # Convert to -1, +1 state.
         self.weights = self.create_random_weights()
+        self.threshold_weights = np.random.uniform(-1, 1, size=(1, self.total_nodes))  # Random weights ~ U([-1,1])
         self.history = self.state
         self.sweeps = 1000
         self.stabilization = np.zeros((self.sweeps, self.total_nodes))
         self.threshold = .01
         self.energy_history = np.zeros(200)
         self.initial_weights = self.weights
+        self.initial_thresholds = self.threshold_weights
 
     def print_current_state(self):
         print self.state
@@ -24,6 +28,7 @@ class BoltzmannMachine(object):
         agreement_matrix = np.outer(self.state, self.state)  # The (i,j) entry is 1 if i,j agree, else -1
         energy_contributions = agreement_matrix * self.weights  # Element-wise product.
         energy = np.sum(energy_contributions) / 2  # Leaving off bias for now.
+        energy += np.dot(self.threshold_weights, self.state)
         return energy
 
     def state_prob(self):
@@ -93,6 +98,7 @@ np.save('stabilization_large.npy', BM.stabilization)
 
 BM_small = BoltzmannMachine(0, 30, 0)
 BM_small.weights = BM.initial_weights / 10
+BM_small.threshold_weights = BM.initial_thresholds / 10
 BM_small.run_machine(BM_small.sweeps)
 BM_small.run_machine(200,1)
 

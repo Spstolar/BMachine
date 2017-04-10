@@ -119,7 +119,7 @@ class BoltzmannMachine(object):
         new_state = self.state
         if mle == 1:
             for node in range(0, self.total_nodes):
-                new_state[node] = self.mle_update(node)
+                new_state[node] = self.mle_update(node, 0)
             self.state = new_state
         elif mle == 0:
             for node in range(0, self.total_nodes):
