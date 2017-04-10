@@ -5,7 +5,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.colors as colors
 
 length_of_vecs = 100
-my_data = np.zeros((10, length_of_vecs))  # Replace with data to be used.
+histData = np.load('hidden_activations.npy')
+my_data = histData  # Replace with data to be used.
 
 pca = PCA(n_components=length_of_vecs)  # This creates a PCA-doing object.
 pca.fit(my_data)
