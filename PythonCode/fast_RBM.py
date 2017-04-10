@@ -489,6 +489,7 @@ def simple_example():
         print 'In: ' + str(rand) + 'Out: ' + str(output_state)
     print str(score) + 'out of 100'
 
+
 def main():
     start_time = time.time()
 
@@ -499,6 +500,8 @@ def main():
 
     BM = BoltzmannMachine(input_size, 300, input_size)
 
+    BM.training(examples,3)
+
     np.save('trained_weights.npy',BM.weights)
 
     end_time = time.time()
@@ -506,6 +509,7 @@ def main():
     print "Training time: "
 
     print end_time - start_time
+
 
 def read():
     start_time = time.time()
@@ -520,3 +524,4 @@ def read():
 
 if __name__ == "__main__":
     main()
+    # read()
