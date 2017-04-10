@@ -72,7 +72,7 @@ class BoltzmannMachine(object):
         self.stabilization[sweep, :] = np.less(difference, self.threshold)
         if (np.sum(self.stabilization[sweep, :]) > 27) & (sweep > 100):
             print sweep
-            print self.stabilization[sweep, :]
+            # print self.stabilization[sweep, :]
             return 1
         else:
             return 0
@@ -86,17 +86,21 @@ class BoltzmannMachine(object):
     def empirical_mean(self):
         return np.mean(self.history, axis=0)
 
+num_nodes = 30
+start = time.time()
 
-
-
-BM = BoltzmannMachine(0, 30, 0)
+BM = BoltzmannMachine(0, num_nodes, 0)
 BM.run_machine(BM.sweeps)
 BM.run_machine(200,1)
+
+end = time.time()
+duration = end - start
+print "It took " + str(duration) + " seconds."
 
 np.save('energy_large_p1.npy', BM.energy_history)
 np.save('stabilization_large.npy', BM.stabilization)
 
-BM_small = BoltzmannMachine(0, 30, 0)
+BM_small = BoltzmannMachine(0, num_nodes, 0)
 BM_small.weights = BM.initial_weights / 10
 BM_small.threshold_weights = BM.initial_thresholds / 10
 BM_small.run_machine(BM_small.sweeps)
